@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import click
-import os
 import fitz  # PyMuPDF
+from pathlib import Path
 from pdfminer.high_level import extract_text
 from pdfminer.layout import LAParams
 import shutil
@@ -10,8 +10,8 @@ import shutil
 def extract_images(pdf_path, output_dir):
     """Extract images from PDF and save them to the output directory."""
     # Create images directory if it doesn't exist
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Open the PDF
     pdf_document = fitz.open(pdf_path)
@@ -30,11 +30,10 @@ def extract_images(pdf_path, output_dir):
 
             # Generate a unique filename
             image_filename = f"image_p{page_num+1}_{img_index+1}.{image_ext}"
-            image_path = os.path.join(output_dir, image_filename)
+            image_path = output_dir / image_filename
 
             # Save the image
-            with open(image_path, "wb") as img_file:
-                img_file.write(image_bytes)
+            image_path.write_bytes(image_bytes)
 
             # Get image position on the page
             rect = page.get_image_bbox(img)
@@ -55,20 +54,21 @@ def extract_images(pdf_path, output_dir):
 @click.argument("input_path", type=click.Path(exists=True))
 def convert_pdf_to_md(input_path):
     """Convert PDF to Markdown maintaining the same filename and including images."""
-    input_dir = os.path.dirname(input_path)
-    parent_dir = os.path.dirname(input_dir)
-    filename = os.path.splitext(os.path.basename(input_path))[0]
-    output_dir = os.path.join(parent_dir, "outputs")
-    output_path = os.path.join(output_dir, f"{filename}.md")
+    input_path = Path(input_path)
+    input_dir = input_path.parent
+    parent_dir = input_dir.parent
+    filename = input_path.stem
+    output_dir = parent_dir / "outputs"
+    output_path = output_dir / f"{filename}.md"
 
     # Create images directory
     images_dir_name = f"{filename}_images"
-    images_dir = os.path.join(output_dir, images_dir_name)
+    images_dir = output_dir / images_dir_name
 
     # Clean up existing files
-    if os.path.exists(output_path):
-        os.remove(output_path)
-    if os.path.exists(images_dir):
+    if output_path.exists():
+        output_path.unlink()
+    if images_dir.exists():
         shutil.rmtree(images_dir)
 
     # Extract images first
@@ -119,7 +119,7 @@ def convert_pdf_to_md(input_path):
                 # Insert any images that should appear before this text
                 while page_images[current_page] and page_images[current_page][0]["y_pos"] <= current_y_pos:
                     img = page_images[current_page].pop(0)
-                    image_path = os.path.join(images_dir_name, img["filename"])
+                    image_path = Path(images_dir_name) / img["filename"]
                     markdown_lines.append(f"![Image]({image_path})")
                     markdown_lines.append("")  # Add a blank line after the image
 
@@ -146,13 +146,15 @@ def convert_pdf_to_md(input_path):
     # Add any remaining images
     for page in sorted(page_images.keys()):
         for img in page_images[page]:
-            image_path = os.path.join(images_dir_name, img["filename"])
+            image_path = Path(images_dir_name) / img["filename"]
             markdown_lines.append(f"![Image]({image_path})")
             markdown_lines.append("")
 
+    # Create output directory if it doesn't exist
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
     # Write to markdown file
-    with open(output_path, "w") as f:
-        f.write("\n\n".join(markdown_lines))
+    output_path.write_text("\n\n".join(markdown_lines))
 
     # Report statistics
     click.echo(f"Converted {input_path} to {output_path}")

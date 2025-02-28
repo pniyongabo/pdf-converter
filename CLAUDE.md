@@ -4,7 +4,7 @@
 - Activate local dev Conda environment: `conda activate ./env/dev`
 - Run PDF to DOCX converter: `python pdf-to-docx.py INPUT_PATH`
 - Run PDF to Markdown converter: `python pdf-to-md.py INPUT_PATH`
-- Install dependencies: `pip install click pdf2docx pdfminer.six pymupdf`
+- Install dependencies: `pip install click pdf2docx pdfminer.six pymupdf pathlib`
 
 ## Code Style Guidelines
 - Imports: Group standard library, then third-party, then local imports with a blank line between groups
